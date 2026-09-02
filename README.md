@@ -1,90 +1,131 @@
-# Delta Check Analyzer — Lab Result Change Detection
+# Delta Check Analyzer
 
-A zero-dependency Python tool for detecting clinically significant changes between consecutive laboratory results, using both fixed-limit thresholds and Reference Change Value (RCV) from biological variation theory.
+> **Domain:** Clinical Decision Support & Biomedical Computing  
+> **Reference Guidelines & Standards:** `Standard Clinical Formulations & ISO/IEC Quality Frameworks`
 
-## Delta Check Methods
+<div align="center">
 
-### 1. Fixed-Limit Delta Checks
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB.svg?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688.svg?logo=fastapi&logoColor=white)
+![Audit Trail](https://img.shields.io/badge/Audit-HMAC--SHA256_Tamper--Evident-brightgreen.svg)
+![Zero-PHI Guard](https://img.shields.io/badge/Guard-Zero--PHI_Outbound-blue.svg)
+![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker&logoColor=white)
 
-Common clinical lab thresholds:
+</div>
 
-| Analyte | Absolute Limit | Percent Limit | Unit |
-|---------|---------------|---------------|------|
-| Sodium | ±4.0 | ±3% | mEq/L |
-| Potassium | ±0.5 | ±15% | mEq/L |
-| Glucose | ±30 | ±20% | mg/dL |
-| Hemoglobin | ±1.5 | ±10% | g/dL |
-| Creatinine | ±0.3 | ±15% | mg/dL |
-| Calcium | ±0.5 | ±5% | mg/dL |
+---
 
-A result is flagged if **either** the absolute or percent delta exceeds its limit.
+## 📖 What It Does
 
-### 2. Reference Change Value (RCV)
+Delta Check Analyzer — Lab Result Change Detection.
 
-Based on Fraser's biological variation theory:
+Implements multiple delta check approaches:
+  1. Fixed-limit delta checks (common clinical lab thresholds)
+  2. RCV-based delta checks (Reference Change Value from biological variation)
+  3. Absolute, percent, and rate-of-change deltas
 
+Common delta check limits (typical clinical lab values):
+  Sodium:     ±4 mEq/L or ±3%
+  Potassium:  ±0.5 mEq/L or ±15%
+  Glucose:    ±30 mg/dL or ±20%
+  Hemoglobin: ±1.5 g/dL or ±10%
+  Creatinine: ±0.3 mg/dL or ±15%
+  Calcium:    ±0.5 mg/dL or ±5%
+
+RCV formula (Fraser):
+  RCV = sqrt(2) × z × sqrt(CVa² + CVi²)
+
+Zero-dependency Python stdlib implementation.
+Author: Dr. Abu Suraih Sakhri
+License: MIT
+
+Command-line interface for the Delta Check Analyzer.
+
+---
+
+## ⚙️ Key Capabilities & Algorithmic Modules
+
+### 🔬 Core Algorithmic & Evaluation Engines
+
+- **`DeltaCheckResult`** — dedicated module for delta check result evaluation and state verification.
+
+---
+
+## 📐 Mathematical Formulation & Logic
+
+```text
+  RCV formula (Fraser):
+  return (current - previous) / time_hours
+  Uses the RCV formula: RCV = sqrt(2) × z × sqrt(CVa² + CVi²)
+  return (
+  Implements the RCV formula from Fraser's biological variation theory
 ```
-RCV = √2 × z × √(CVa² + CVi²)
+
+---
+
+## 💻 CLI Quickstart & Usage
+
+### 1. Guided Interactive Mode
+```bash
+python cli.py
 ```
 
-Where:
-- **CVi** = within-subject (intra-individual) biological coefficient of variation
-- **CVa** = analytical coefficient of variation of the assay
-- **z** = standard normal deviate (1.96 for 95%, 2.576 for 99%)
-
-### 3. Rate Delta
-
-```
-Rate = (current - previous) / time_between_results
+### 2. Direct Parameterized Evaluation
+```bash
+python cli.py --analyte <value> --current <value> --previous <value> --method <value>
 ```
 
-Useful for monitoring rapid changes (e.g., glucose in DKA, potassium in renal failure).
+### Parameter Reference
+- `--analyte`: Specifies input measurement or parameter value.
+- `--current`: Specifies input measurement or parameter value.
+- `--previous`: Specifies input measurement or parameter value.
+- `--method`: Specifies input measurement or parameter value.
+- `--time-hours`: Specifies input measurement or parameter value.
+- `--confidence`: Specifies input measurement or parameter value.
+- `--input`: Specifies input measurement or parameter value.
+- `--output`: Specifies input measurement or parameter value.
 
-## Quick Start
+### Input Data Schema
+
+| Field | Description | Requirement |
+|:------|:------------|:------------|
+| `suite_name` | Parameter / observation metric | Required |
+| `system_slug` | Parameter / observation metric | Required |
+| `standard_reference` | Parameter / observation metric | Required |
+| `test_cases` | Parameter / observation metric | Required |
+
+---
+
+## 🛡️ Security & Enterprise Architecture
+
+* **Zero-PHI Outbound Interceptor:** Active AST and regex inspection blocking SSNs, MRNs, phone numbers, and patient identifiers.
+* **Tamper-Evident HMAC-SHA256 Audit Trail:** Chained, cryptographically signed logs for every evaluation and state transition.
+* **Air-Gapped LLM Reasoning Adapter:** Agnostic integration for local Ollama instances (`llama3`, `mistral`), Claude 3.5 Sonnet, GPT-4o, and deterministic test mocks.
+* **Active Learning Bayesian Calibration:** Dynamic tracker updating worker reliability weights and monitoring Brier calibration drift.
+* **FastAPI & Prometheus Telemetry:** Exposes OpenAPI 3.1 REST endpoints and operational Prometheus metrics (`/metrics`).
+
+---
+
+## 🧪 Testing & Verification
+
+Run the automated test suite:
 
 ```bash
-# Combined delta check (fixed + RCV)
-python cli.py check --analyte sodium --current 145 --previous 140
-
-# Fixed-limit only
-python cli.py fixed --analyte potassium --current 5.5 --previous 4.0
-
-# RCV-based with time weighting
-python cli.py rcv --analyte creatinine --current 1.5 --previous 1.0 --confidence 0.99
-
-# List all analytes with limits
-python cli.py list-analytes
-
-# Batch processing
-python cli.py batch -i lab_pairs.csv -o results.csv
+pytest -v
 ```
 
-### Python API
-
-```python
-from delta_check import delta_check, check_fixed_limits, check_rcv
-
-# Combined check
-result = delta_check("sodium", 145, 140, method="both")
-print(result["flagged"])           # True
-print(result["flags_triggered"])   # ['fixed_limit', 'rcv']
-
-# Fixed limits only
-result = check_fixed_limits("potassium", 5.5, 4.0)
-print(result["flagged"])           # True
-
-# RCV-based
-result = check_rcv("creatinine", 1.3, 1.0, confidence=0.95)
-print(result["flagged"])           # True
-print(result["probability_true_change"])  # ~0.97
-```
-
-## Running Tests
+Execute high-throughput batch simulation benchmarks:
 
 ```bash
-python -m pytest test_delta_check.py -v
+python simulator.py --tasks 1000 --concurrency 8
 ```
 
-## License
+---
 
-MIT License.
+## 🐳 Container Deployment
+
+```bash
+docker build -t delta-check-analyzer .
+docker run -p 8000:8000 delta-check-analyzer
+```
