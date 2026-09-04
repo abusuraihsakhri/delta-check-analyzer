@@ -26,5 +26,3 @@ class TelemetryBroadcaster:
                 await connection.send_text(msg)
             except Exception:
                 self.disconnect(connection)
-
-GLOBAL_STREAMER = TelemetryBroadcaster()

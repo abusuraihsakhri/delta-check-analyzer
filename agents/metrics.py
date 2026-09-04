@@ -58,5 +58,3 @@ class SystemMetricsCollector:
             ""
         ]
         return "\n".join(p_lines)
-
-GLOBAL_METRICS = SystemMetricsCollector()

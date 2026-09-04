@@ -7,7 +7,9 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - AUDIT_SECRET_KEY=delta-check-analyzer-prod-audit-key-2026
+      # Generate a secure key: python -c "import secrets; print(secrets.token_hex(32))"
+      # AUDIT_SECRET_KEY must be set in production via .env file or secrets manager
+      - AUDIT_SECRET_KEY=${AUDIT_SECRET_KEY:-}
       - MODEL_PROVIDER=mock
     restart: unless-stopped
     healthcheck:

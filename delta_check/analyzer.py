@@ -23,21 +23,16 @@ Author: Dr. Abu Suraih Sakhri
 License: MIT
 """
 
-import argparse
 import csv
-import json
 import math
-import sys
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, Optional
 
 # Import the RCV-based core
 from .core import (
-    rcv_percent,
-    percent_change as rcv_percent_change,
     evaluate_pair,
     DeltaCheckResult,
 )
-from .reference_table import DEFAULT_REFERENCE_TABLE, load_reference_table
+from .reference_table import DEFAULT_REFERENCE_TABLE
 
 
 # ---------------------------------------------------------------------------
@@ -212,33 +207,48 @@ def check_fixed_limits(
 
     limits = FIXED_DELTA_LIMITS[analyte_key]
     abs_delta = absolute_delta(current, previous)
-    pct_delta = percent_delta(current, previous)
+
+    # Handle zero previous value: percent delta is undefined
+    try:
+        pct_delta = percent_delta(current, previous)
+    except ValueError:
+        pct_delta = None
 
     abs_flagged = abs_delta > limits["absolute_limit"]
-    pct_flagged = pct_delta > limits["percent_limit"]
+    pct_flagged = pct_delta is not None and pct_delta > limits["percent_limit"]
     flagged = abs_flagged or pct_flagged
 
-    return {
+    result = {
         "analyte": analyte,
         "current": current,
         "previous": previous,
         "unit": limits["unit"],
         "absolute_delta": round(abs_delta, 3),
-        "percent_delta": round(pct_delta, 3),
+        "percent_delta": round(pct_delta, 3) if pct_delta is not None else "undefined (previous=0)",
         "absolute_limit": limits["absolute_limit"],
         "percent_limit": limits["percent_limit"],
         "absolute_flagged": abs_flagged,
         "percent_flagged": pct_flagged,
         "flagged": flagged,
-        "interpretation": (
+    }
+
+    if pct_delta is not None:
+        result["interpretation"] = (
             f"DELTA CHECK FAILED: {analyte} changed by {abs_delta:.2f} {limits['unit']} "
             f"({pct_delta:.1f}%). Exceeds limit of ±{limits['absolute_limit']} {limits['unit']} "
             f"or ±{limits['percent_limit']}%. Possible specimen error, patient change, or treatment effect."
             if flagged else
             f"Delta check passed: {analyte} change ({abs_delta:.2f} {limits['unit']}, "
             f"{pct_delta:.1f}%) within acceptable limits."
-        ),
-    }
+        )
+    else:
+        result["interpretation"] = (
+            f"DELTA CHECK: {analyte} changed by {abs_delta:.2f} {limits['unit']} "
+            f"(percent delta undefined — previous value was zero). "
+            f"{'Absolute delta exceeds limit.' if abs_flagged else 'Absolute delta within limit.'}"
+        )
+
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -282,6 +292,17 @@ def check_rcv(
         }
 
     cvi, cva = table[analyte_key]
+
+    # Handle zero previous value: percent change is undefined
+    if previous == 0:
+        return {
+            "analyte": analyte,
+            "current": current,
+            "previous": previous,
+            "error": "Previous value is zero; percent change is undefined for RCV evaluation.",
+            "flagged": None,
+        }
+
     result = evaluate_pair(
         analyte=analyte,
         cvi=cvi,

@@ -46,5 +46,3 @@ class ActiveLearningEngine:
 
     def get_calibrated_weights(self) -> Dict[str, float]:
         return {k: v.dynamic_weight for k, v in self.worker_metrics.items()}
-
-GLOBAL_LEARNING_ENGINE = ActiveLearningEngine()

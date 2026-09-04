@@ -59,7 +59,8 @@ def test_supervisor_consensus_and_audit():
     # Verify cryptographic audit trail
     assert AuditLogger.verify_integrity() is True
 
-    # CLI tests
-    assert main(["audit", "--task-id", "CLI-TEST-01"]) == 0
-    assert main(["chat", "Explain", "specifications"]) == 0
-    assert main(["verify-audit"]) == 0
+    # CLI tests - use valid CLI commands
+    assert main(["check", "--analyte", "sodium", "--current", "145", "--previous", "140"]) == 0
+    assert main(["fixed", "--analyte", "potassium", "--current", "5.5", "--previous", "4.0"]) == 0
+    assert main(["rcv", "--analyte", "creatinine", "--current", "1.5", "--previous", "1.0"]) == 0
+    assert main(["list-analytes"]) == 0

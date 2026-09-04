@@ -8,6 +8,7 @@ import json
 import time
 import hmac
 import hashlib
+import secrets
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
 from pydantic import BaseModel, Field
@@ -57,7 +58,14 @@ class PHIGuard:
 class AuditTrail:
     """Cryptographic Tamper-Evident HMAC-SHA256 Audit Trail."""
     def __init__(self, secret_key: Optional[str] = None):
-        self.secret_key = (secret_key or os.getenv("AUDIT_SECRET_KEY", "delta-check-analyzer-master-audit-key-2026")).encode("utf-8")
+        # Resolve secret key with priority: explicit arg > env var > secure random generation.
+        # A random key per process is the safe default: it prevents signature forgery
+        # across restarts while still providing tamper-evidence within a session.
+        resolved = secret_key or os.getenv("AUDIT_SECRET_KEY")
+        if resolved:
+            self.secret_key = resolved.encode("utf-8")
+        else:
+            self.secret_key = secrets.token_bytes(32)
         self.logs: List[Dict[str, Any]] = []
 
     def log(self, actor: str, actor_tier: str, event_type: str, details: Dict[str, Any]) -> Dict[str, Any]:
