@@ -1,1 +1,2 @@
-numpy>=1.24
+# Core calculation and CLI require no third-party packages.
+# Install optional API and test dependencies via pyproject.toml extras.
