@@ -194,6 +194,8 @@ def check_fixed_limits(
 
     Returns dict with deltas, limits, and flag status.
     """
+    if not all(math.isfinite(v) for v in (current, previous)):
+        raise ValueError("Current and previous measurements must be finite")
     analyte_key = analyte.strip().lower().replace(" ", "_")
 
     if analyte_key not in FIXED_DELTA_LIMITS:
@@ -267,6 +269,8 @@ def check_rcv(
 
     Uses the RCV formula: RCV = sqrt(2) × z × sqrt(CVa² + CVi²)
     """
+    if not all(math.isfinite(v) for v in (current, previous)):
+        raise ValueError("Current and previous measurements must be finite")
     analyte_key = analyte.strip().lower().replace(" ", "_")
 
     # Try to find in reference table
@@ -327,7 +331,7 @@ def check_rcv(
         "interpretation": (
             f"RCV FLAG: {analyte} changed {result.percent_change:.1f}% "
             f"(RCV threshold: {result.rcv_percent:.1f}% at {confidence*100:.0f}% confidence). "
-            f"Probability of true change: {result.probability_true_change:.1%}."
+            f"Two-sided p-value: {1.0 - result.probability_true_change:.4f} (not a posterior probability)."
             if result.flagged else
             f"RCV passed: {analyte} change ({result.percent_change:.1f}%) within RCV "
             f"({result.rcv_percent:.1f}% at {confidence*100:.0f}% confidence)."
@@ -361,6 +365,10 @@ def delta_check(
     Returns:
         Comprehensive delta check result
     """
+    if method not in ("fixed", "rcv", "both"):
+        raise ValueError("method must be 'fixed', 'rcv', or 'both'")
+    if not all(math.isfinite(v) for v in (current, previous)):
+        raise ValueError("Current and previous measurements must be finite")
     result = {
         "analyte": analyte,
         "current": current,
@@ -390,7 +398,12 @@ def delta_check(
     if method in ("rcv", "both") and result.get("rcv_check", {}).get("flagged"):
         flags.append("rcv")
 
-    result["flagged"] = len(flags) > 0
+    requested_checks = [
+        result[key] for key in ("fixed_limit_check", "rcv_check") if key in result
+    ]
+    fully_evaluated = all(check.get("flagged") is not None for check in requested_checks)
+    result["flagged"] = bool(flags) if fully_evaluated or flags else None
+    result["fully_evaluated"] = fully_evaluated
     result["flags_triggered"] = flags
 
     if result["flagged"]:
@@ -399,8 +412,16 @@ def delta_check(
             "Verify specimen identity, check for clotted sample, "
             "review patient clinical status, and consider recollection if specimen error suspected."
         )
+    elif not fully_evaluated:
+        result["recommendation"] = (
+            f"Delta check incomplete for {analyte}: one or more methods could not be "
+            "evaluated. Review input, reference data and clinical context."
+        )
     else:
-        result["recommendation"] = f"Delta check passed for {analyte}. No action required."
+        result["recommendation"] = (
+            f"No configured delta threshold exceeded for {analyte}; "
+            "clinical review may still be required."
+        )
 
     return result
 
@@ -421,9 +442,11 @@ def process_batch(input_csv: str, output_csv: str, method: str = "both", confide
         fieldnames = list(reader.fieldnames or [])
         rows = list(reader)
 
-    out_fields = fieldnames + [
+    if not {"analyte", "current", "previous"}.issubset(fieldnames):
+        raise ValueError("Input CSV requires analyte,current,previous columns")
+    out_fields = list(dict.fromkeys(fieldnames + [
         "absolute_delta", "percent_delta", "flagged", "flags_triggered", "recommendation",
-    ]
+    ]))
     out_rows = []
 
     for r in rows:
