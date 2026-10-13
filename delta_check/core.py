@@ -76,7 +76,7 @@ def time_weighted_cvi(
     a longer gap between draws.
     """
     if not math.isfinite(interval_hours) or interval_hours <= 0:
-        raise ValueError("interval_hours must be finite and positive")
+        raise ValueError("interval_hours must be positive and finite")
     if not math.isfinite(reference_interval_hours) or reference_interval_hours <= 0:
         raise ValueError("reference_interval_hours must be finite and positive")
     if not math.isfinite(cvi) or cvi < 0:
