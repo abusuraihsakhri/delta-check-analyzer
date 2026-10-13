@@ -36,3 +36,16 @@ jobs:
         run: |
           node --check web/app.js
           node --test web/app.test.cjs
+      - name: Docker CLI and API smoke test
+        if: matrix.python-version == '3.12'
+        run: |
+          docker build --tag delta-check-analyzer:ci .
+          docker run --rm delta-check-analyzer:ci > /dev/null
+          docker run -d --name dca-ci --publish 127.0.0.1:8765:8000 delta-check-analyzer:ci uvicorn agents.api:app --host 0.0.0.0 --port 8000
+          trap 'docker rm -f dca-ci >/dev/null 2>&1 || true' EXIT
+          for attempt in $(seq 1 20); do
+            if curl --fail --silent http://127.0.0.1:8765/health > /tmp/dca-health.json; then break; fi
+            sleep 2
+          done
+          python -c 'import json; assert json.load(open("/tmp/dca-health.json"))["status"] == "HEALTHY"'
+          curl --fail --silent --show-error -X POST http://127.0.0.1:8765/api/audit -H "Content-Type: application/json" -d '{"task_id":"DEMO-1","target_identifier":"SPECIMEN-01","primary_metric":10.0}' | python -c 'import json,sys; r=json.load(sys.stdin); assert r["total_alerts"] == 0'
