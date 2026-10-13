@@ -17,6 +17,7 @@ The table is editable at three levels:
   3. Call load_reference_table(path) from Python.
 """
 import csv
+import math
 
 # analyte_key -> (CVi_percent, CVa_percent)
 DEFAULT_REFERENCE_TABLE = {
@@ -58,9 +59,21 @@ def load_reference_table(path: str = None) -> dict:
     if path:
         with open(path, newline="") as f:
             reader = csv.DictReader(f)
-            for row in reader:
-                key = row["analyte"].strip().lower().replace(" ", "_")
-                table[key] = (float(row["cvi_percent"]), float(row["cva_percent"]))
+            required = {"analyte", "cvi_percent", "cva_percent"}
+            if not required.issubset(reader.fieldnames or []):
+                raise ValueError("Reference CSV requires analyte,cvi_percent,cva_percent columns")
+            for line, row in enumerate(reader, start=2):
+                key = (row["analyte"] or "").strip().lower().replace(" ", "_")
+                if not key:
+                    raise ValueError(f"Reference CSV line {line}: analyte cannot be empty")
+                try:
+                    cvi = float(row["cvi_percent"])
+                    cva = float(row["cva_percent"])
+                except (ValueError, TypeError) as exc:
+                    raise ValueError(f"Reference CSV line {line}: invalid CVi/CVa") from exc
+                if any(not math.isfinite(cv) or cv < 0 for cv in (cvi, cva)):
+                    raise ValueError(f"Reference CSV line {line}: CVi/CVa must be finite and non-negative")
+                table[key] = (cvi, cva)
     return table
 
 
