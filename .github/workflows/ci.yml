@@ -1,40 +1,66 @@
-name: Delta Check Analyzer CI/CD & Security Verification
+name: Delta Check Analyzer CI
 
 on:
   push:
-    branches: [ master, main ]
+    branches: [master, main]
   pull_request:
-    branches: [ master, main ]
+    branches: [master, main]
 
 jobs:
-  test-and-audit:
+  test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: ["3.10", "3.11", "3.12"]
-
     steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
-
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install fastapi uvicorn pydantic pytest
-
-    - name: Run Pytest Suite
-      run: |
-        pytest -v
-
-    - name: Security SAST & Zero-PHI Audit
-      run: |
-        python -c "
-        from agents.base import PHIGuard, AuditLogger
-        import pytest
-        assert AuditLogger.verify_integrity() is True
-        print('Security & Zero-PHI Audit Passed!')
-        "
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install package and test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          python -m pip check
+      - name: Check Python syntax
+        run: python -m compileall -q delta_check agents cli.py enrichment.py
+      - name: Run automated tests
+        run: |
+          python -m pytest -q
+          python -m unittest -q test_delta_check
+      - name: Check installed command
+        run: |
+          delta-check list-analytes
+          python -m delta_check list-analytes
+      - name: Check browser JavaScript
+        run: |
+          node --check web/app.js
+          node --test web/app.test.cjs
+      - name: Docker CLI and API smoke test
+        if: matrix.python-version == '3.12'
+        run: |
+          docker build --tag delta-check-analyzer:ci .
+          docker run --rm delta-check-analyzer:ci > /dev/null
+          docker run -d --name dca-ci --publish 127.0.0.1:8765:8000 delta-check-analyzer:ci uvicorn agents.api:app --host 0.0.0.0 --port 8000
+          trap 'docker rm -f dca-ci >/dev/null 2>&1 || true' EXIT
+          for attempt in $(seq 1 20); do
+            if curl --fail --silent http://127.0.0.1:8765/health > /tmp/dca-health.json; then break; fi
+            sleep 2
+          done
+          python -c 'import json; assert json.load(open("/tmp/dca-health.json"))["status"] == "HEALTHY"'
+          curl --fail --silent --show-error -X POST http://127.0.0.1:8765/api/audit -H "Content-Type: application/json" -d '{"task_id":"DEMO-1","target_identifier":"SPECIMEN-01","primary_metric":10.0}' | python -c 'import json,sys; r=json.load(sys.stdin); assert r["total_alerts"] == 0'
+      - name: Verify deployed GitHub Pages assets
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master' && matrix.python-version == '3.12'
+        run: |
+          base=https://abusuraihsakhri.github.io/delta-check-analyzer
+          found=0
+          for attempt in $(seq 1 20); do
+            if curl -fsSL "$base/web/" | grep -q 'Paired result evaluation' &&
+               curl -fsSL "$base/web/app.js" | grep -q 'function calculate' &&
+               curl -fsSL "$base/" | grep -q 'web/'; then
+              found=1
+              break
+            fi
+            sleep 6
+          done
+          test "$found" -eq 1 || { echo "Published Pages assets not verified"; exit 1; }

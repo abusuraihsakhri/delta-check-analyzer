@@ -53,6 +53,8 @@ def rcv_percent(cvi: float, cva: float, confidence: float = 0.95) -> float:
     """Reference Change Value, in percent: RCV = sqrt(2) * z * sqrt(CVa^2 + CVi^2)."""
     if confidence not in Z_SCORES:
         raise ValueError(f"Unsupported confidence level {confidence}; use one of {sorted(Z_SCORES)}")
+    if not all(math.isfinite(value) and value >= 0 for value in (cvi, cva)):
+        raise ValueError("CVi and CVa must be finite, non-negative percentages")
     z = Z_SCORES[confidence]
     return z * rcv_sd_units(cvi, cva)
 
@@ -73,8 +75,12 @@ def time_weighted_cvi(
     widens it, reflecting the greater physiological drift possible over
     a longer gap between draws.
     """
-    if interval_hours <= 0:
-        raise ValueError("interval_hours must be positive")
+    if not math.isfinite(interval_hours) or interval_hours <= 0:
+        raise ValueError("interval_hours must be positive and finite")
+    if not math.isfinite(reference_interval_hours) or reference_interval_hours <= 0:
+        raise ValueError("reference_interval_hours must be finite and positive")
+    if not math.isfinite(cvi) or cvi < 0:
+        raise ValueError("CVi must be finite and non-negative")
     return cvi * math.sqrt(interval_hours / reference_interval_hours)
 
 
@@ -91,20 +97,21 @@ def time_weighted_rcv_percent(
 
 
 def percent_change(prior: float, current: float) -> float:
+    if not math.isfinite(prior) or not math.isfinite(current):
+        raise ValueError("Prior and current values must be finite")
     if prior == 0:
         raise ValueError("prior value is zero; percent change is undefined (use absolute_change instead)")
     return (current - prior) / prior * 100.0
 
 
 def probability_of_true_change(observed_percent_change: float, cvi: float, cva: float) -> float:
-    """Probability that the observed change reflects a true biological/
-    clinical change rather than combined analytical and within-subject
-    noise, under the same normal model behind the RCV formula.
-
-    The observed change is expressed in units of the noise standard
-    deviation (rcv_sd_units); the two-tailed probability of seeing a
-    change at least that large by chance alone is subtracted from 1.
+    """Legacy significance score (1 - two-sided p-value), NOT the posterior
+    probability of a true biological change. The function name is retained
+    for compatibility. A probability of true change requires a prior model.
     """
+    rcv_percent(cvi, cva)  # validate coefficients
+    if not math.isfinite(observed_percent_change):
+        raise ValueError("Observed change must be finite")
     sd = rcv_sd_units(cvi, cva)
     if sd == 0:
         return 1.0 if observed_percent_change != 0 else 0.0
@@ -138,6 +145,7 @@ class DeltaCheckResult:
             "interval_hours": round(self.interval_hours, 3) if self.interval_hours is not None else None,
             "flagged": self.flagged,
             "probability_true_change": round(self.probability_true_change, 4),
+            "two_sided_p_value": round(1.0 - self.probability_true_change, 4),
         }
 
 
@@ -156,6 +164,7 @@ def evaluate_pair(
     If interval_hours is given, the RCV is time-weighted for the gap
     between draws; otherwise the standard (untimed) RCV is used.
     """
+    # The relative RCV model cannot evaluate a zero baseline.
     pct_change = percent_change(prior_value, current_value)
     abs_change = current_value - prior_value
     if interval_hours is not None:
@@ -163,7 +172,9 @@ def evaluate_pair(
     else:
         rcv = rcv_percent(cvi, cva, confidence)
     flagged = abs(pct_change) > rcv
-    prob = probability_of_true_change(pct_change, cvi, cva)
+    effective_cvi = (time_weighted_cvi(cvi, interval_hours, reference_interval_hours)
+                     if interval_hours is not None else cvi)
+    prob = probability_of_true_change(pct_change, effective_cvi, cva)
     return DeltaCheckResult(
         analyte=analyte,
         prior_value=prior_value,

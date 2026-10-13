@@ -4,8 +4,6 @@ import csv
 import sys
 from datetime import datetime
 
-import numpy as np
-
 from .core import evaluate_pair, DeltaCheckResult
 from .reference_table import load_reference_table
 
@@ -41,7 +39,7 @@ def _format_result_line(prefix: str, result: DeltaCheckResult) -> str:
     return (
         f"[{flag}] {prefix}{d['analyte']}: {d['prior_value']} -> {d['current_value']} "
         f"(delta={d['percent_change']}%, RCV@{int(d['confidence'] * 100)}%={d['rcv_percent']}%{interval}, "
-        f"P(true change)={d['probability_true_change']})"
+        f"two-sided p={d['two_sided_p_value']})"
     )
 
 
@@ -101,18 +99,21 @@ def cmd_batch(args) -> int:
             continue
         cvi, cva = table[analyte]
 
-        # Vectorized percent/absolute change across the whole longitudinal
-        # series for this patient+analyte, then per-pair RCV evaluation
-        # (which needs the per-pair interval when time-weighting).
-        values = np.array([r["value"] for r in group], dtype=float)
-        pct_changes = np.diff(values) / values[:-1] * 100.0
-
-        for i in range(len(pct_changes)):
+        # Evaluate consecutive chronological observations. No array dependency
+        # is required, and zero baselines can be handled per pair.
+        for i in range(len(group) - 1):
             prior_row, current_row = group[i], group[i + 1]
             interval_hours = None
             if args.time_weighted:
                 delta_hours = (current_row["timestamp"] - prior_row["timestamp"]).total_seconds() / 3600.0
                 interval_hours = delta_hours if delta_hours > 0 else None
+            if prior_row["value"] == 0:
+                print(
+                    f"Skipped {patient_id}/{analyte} at {prior_row['timestamp'].isoformat()}: "
+                    "percentage change is undefined for zero baseline.",
+                    file=sys.stderr,
+                )
+                continue
             result = evaluate_pair(
                 analyte,
                 cvi,
@@ -149,7 +150,7 @@ def cmd_batch(args) -> int:
             "patient_id", "analyte", "prior_timestamp", "current_timestamp",
             "prior_value", "current_value", "percent_change", "absolute_change",
             "rcv_percent", "confidence", "interval_hours", "flagged",
-            "probability_true_change",
+            "probability_true_change", "two_sided_p_value",
         ]
         with open(args.output, "w", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames)
@@ -163,7 +164,7 @@ def cmd_batch(args) -> int:
                 f"[{flag}] patient={row['patient_id']} {row['analyte']}: "
                 f"{row['prior_value']} -> {row['current_value']} "
                 f"(delta={row['percent_change']}%, RCV={row['rcv_percent']}%, "
-                f"P(true change)={row['probability_true_change']})"
+                f"two-sided p={row['two_sided_p_value']})"
             )
 
     n_flagged = sum(1 for *_ , r in results if r.flagged)

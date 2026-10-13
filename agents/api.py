@@ -4,7 +4,7 @@ FastAPI REST API Server for Delta Check Analyzer.
 from typing import Dict, Any, List
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from .base import AuditLogger, PHIGuard
+from .base import AuditLogger, PHIGuard, SecurityException
 from .models import SystemTaskPayload, ConsensusDossier
 from .supervisor import SystemSupervisor
 
@@ -23,7 +23,7 @@ class ChatRequest(BaseModel):
 
 @app.get("/health")
 def health():
-    return {"status": "HEALTHY", "service": "delta-check-analyzer", "domain": "Clinical & Biomedical AI", "standard": "CAP / CLSI / ISO Standards", "version": "3.0.0-ENTERPRISE"}
+    return {"status": "HEALTHY", "service": "delta-check-analyzer", "domain": "Clinical & Biomedical AI", "validation_status": "prototype", "version": "3.0.0-ENTERPRISE"}
 
 
 @app.get("/metrics")
@@ -37,7 +37,10 @@ def metrics():
 
 @app.post("/api/audit")
 def api_audit(payload: SystemTaskPayload):
-    dossier = supervisor.process_task(payload)
+    try:
+        dossier = supervisor.process_task(payload)
+    except SecurityException as exc:
+        raise HTTPException(status_code=422, detail="Potential personal identifier detected") from exc
     return dossier.to_dict()
 
 
@@ -46,8 +49,8 @@ def api_chat(req: ChatRequest):
     try:
         ans = supervisor.query_supervisory_chat(req.query)
         return {"response": ans}
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    except SecurityException as exc:
+        raise HTTPException(status_code=422, detail="Potential personal identifier detected") from exc
 
 
 @app.get("/api/audit/logs")
