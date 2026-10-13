@@ -22,12 +22,16 @@ const FIXED = {
   hemoglobin:[1.5,10], creatinine:[0.3,15], calcium:[0.5,5],
   chloride:[5,5], bicarbonate:[4,10], wbc:[3,20],
   platelets:[50,20], albumin:[0.5,10], total_protein:[0.5,10],
-  ast:[20,30], alt:[20,30], total_bilirubin:[1,30], urea:[5,20]
+  ast:[20,30], alt:[20,30], total_bilirubin:[1,30]
 };
 const ALIASES = {bun:"urea",co2:"bicarbonate",bilirubin:"total_bilirubin"};
 
 function calculate(data) {
   const analyte = ALIASES[data.analyte] || data.analyte;
+  if (["prior","current","cvi","cva"].some(k =>
+      data[k] === null || data[k] === undefined || String(data[k]).trim() === "")) {
+    throw new Error("Complete all numeric inputs.");
+  }
   const prior = Number(data.prior);
   const current = Number(data.current);
   const cvi = Number(data.cvi);
@@ -61,7 +65,8 @@ function calculate(data) {
   const rcvFlag = rcvThreshold === null ? null : pctDelta > rcvThreshold;
   const available = [fixedFlag,rcvFlag].filter(x => x !== null);
   const flagged = available.length ? available.some(Boolean) : null;
-  const complete = (!fixed || fixedFlag !== null) && (!rcv || rcvFlag !== null);
+  const complete = (!fixed || (fixedFlag !== null && pctDelta !== null)) &&
+    (!rcv || rcvFlag !== null);
   return {analyte,prior,current,cvi,cva,confidence,method,absDelta,pctDelta,
     fixedLimits,fixedFlag,rcvThreshold,rcvFlag,flagged,complete};
 }
