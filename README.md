@@ -1,223 +1,80 @@
 # Delta Check Analyzer
 
-> **Domain:** Clinical Decision Support & Biomedical Computing  
-> **Standards:** CAP / CLSI / ISO / Clinical and Laboratory Standards Institute
+### [Open the Live Application →](https://abusuraihsakhri.github.io/delta-check-analyzer/)
 
-<div align="center">
+Compare consecutive laboratory results using configurable reference change value (RCV) calculations and illustrative fixed delta limits. The browser application runs locally without a backend. The repository also provides Python APIs, two command-line interfaces, and an optional FastAPI prototype.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB.svg?logo=python&logoColor=white)
-![Audit Trail](https://img.shields.io/badge/Audit-HMAC--SHA256_Tamper--Evident-brightgreen.svg)
-![Zero-PHI Guard](https://img.shields.io/badge/Guard-Zero--PHI_Outbound-blue.svg)
+## Browser calculator
 
-</div>
+Open the link above, select an analyte, enter prior/current results, and review absolute/percentage changes and thresholds. CVi and CVa can be changed to match a local validated method. Select fixed limits, RCV or both, then optionally export the single evaluation as CSV.
 
----
+- RCV = √2 × z × √(CVi² + CVa²); z = 1.96 at 95% or 2.576 at 99% (two-sided).
+- Fixed checks flag changes exceeding **either** the configured absolute or percentage limit.
+- When a requested method is unavailable or a baseline is zero, results explicitly report an incomplete evaluation.
+- No patient identifiers are requested. Input and result data stay in the current browser tab; no backend, analytics, external font requests or persistent browser storage are used.
+- The browser runs plain JavaScript implementing the same threshold formulas; no server-side Python or Pyodide is required.
 
-## What It Does
+**Clinical limitation:** Built-in biological-variation coefficients and fixed limits are rounded *demonstration values*, not validated universal clinical decision limits. The apparent significance value exposed for backward compatibility as probability_true_change is **1 minus the two-sided p-value**, not the posterior probability that a true biological change occurred. Some Python-only workflows offer exploratory time-weighted CVi based on a random-walk assumption; this is not established as a generally validated RCV adjustment. Units, analytical performance, specimen factors, clinical context, analyte-specific kinetics and local policies must be assessed before laboratory implementation. This tool is not validated for autonomous clinical decisions.
 
-Delta Check Analyzer detects clinically significant changes between paired lab results using two complementary approaches:
+## Python installation
 
-1. **Fixed-limit delta checks** — Common clinical lab thresholds (e.g., Sodium ±4 mEq/L or ±3%)
-2. **RCV-based delta checks** — Reference Change Value from biological variation (Fraser's formula)
+Python 3.10 or newer is required.
 
-### Common Delta Check Limits (typical clinical lab values)
-
-| Analyte | Absolute Limit | Percent Limit | Unit |
-|---------|---------------|---------------|------|
-| Sodium | ±4 | ±3% | mEq/L |
-| Potassium | ±0.5 | ±15% | mEq/L |
-| Glucose | ±30 | ±20% | mg/dL |
-| Hemoglobin | ±1.5 | ±10% | g/dL |
-| Creatinine | ±0.3 | ±15% | mg/dL |
-| Calcium | ±0.5 | ±5% | mg/dL |
-
-### RCV Formula (Fraser)
-
-```
-RCV = sqrt(2) × z × sqrt(CVa² + CVi²)
-```
-
-Where:
-- **CVa** = analytical coefficient of variation of the assay
-- **CVi** = within-subject (intra-individual) biological coefficient of variation
-- **z** = standard normal deviate (1.96 for 95%, 2.576 for 99%)
-- **sqrt(2)** accounts for the variance of the *difference* between two results
-
----
-
-## Installation
-
-```bash
-# Clone the repository
+~~~bash
 git clone https://github.com/abusuraihsakhri/delta-check-analyzer.git
 cd delta-check-analyzer
+python -m pip install -e .
+~~~
 
-# Install dependencies
-pip install -r requirements.txt
-```
+The basic calculator uses the Python standard library. Optional API and test dependencies are installed with pip install -e ".[web]" or pip install -e ".[dev]".
 
-### Optional: Install with web API support
+## Command-line usage
 
-```bash
-pip install "delta-check-analyzer[web]"
-```
+The installed delta-check command and the repository's python cli.py entry point support fixed, RCV and combined evaluation:
 
----
+~~~bash
+delta-check list-analytes
+delta-check check --analyte sodium --previous 140 --current 145
+delta-check rcv --analyte creatinine --previous 1.0 --current 1.5 --confidence 0.99
+delta-check batch -i paired_results.csv -o results.csv
+~~~
 
-## Usage
+For the last command, the input CSV must contain analyte,current,previous and may include time_hours. Bad or unknown records are reported; an incomplete check is not a normal result.
 
-### Command-Line Interface
+The advanced python -m delta_check CLI provides a longitudinal cohort workflow with analyte-specific CVi/CVa override tables:
 
-#### 1. List Available Analytes
-```bash
-python cli.py list-analytes
-```
+~~~bash
+python -m delta_check list-analytes
+python -m delta_check pair sodium 140 145
+python -m delta_check batch sample_data.csv --all --output longitudinal_results.csv
+~~~
 
-#### 2. Combined Delta Check (fixed + RCV)
-```bash
-python cli.py check --analyte sodium --current 145 --previous 140
-python cli.py check --analyte glucose --current 200 --previous 120 --time-hours 6
-```
+This **different** batch schema requires patient_id,analyte,timestamp,value. Results are grouped by patient/analyte and sorted chronologically; consecutive observations are compared. Use --time-weighted only when its assumptions have been explicitly evaluated. Do not place identifiable patient information in repositories, issues or publicly shared exports.
 
-#### 3. Fixed-Limit Check Only
-```bash
-python cli.py fixed --analyte potassium --current 5.5 --previous 4.0
-```
+## Optional API / Docker
 
-#### 4. RCV-Based Check Only
-```bash
-python cli.py rcv --analyte creatinine --current 1.5 --previous 1.0 --confidence 0.99
-```
+~~~bash
+python -m pip install -e ".[web]"
+uvicorn agents.api:app --host 127.0.0.1 --port 8000
+# Alternatively: docker compose up --build
+~~~
 
-#### 5. Batch Process CSV
-```bash
-python cli.py batch -i sample_data.csv -o results.csv
-```
+The prototype exposes /health, /metrics, /api/audit, /api/chat and /api/audit/logs. Its generic multi-worker thresholds are **not** equivalent to the RCV calculator, and its model provider is currently a deterministic mock. The API has no authentication or production-grade protected-health-information controls. The supplied Docker Compose configuration binds to localhost by default; never expose these endpoints publicly or send actual patient data without a separate security and clinical validation assessment. The regex-based identifier guard is not a guarantee of HIPAA de-identification.
 
-### CLI Parameters
+The HMAC-SHA256 audit log detects modified signed entries within an active process. It is in memory, does not survive restart, and is not a persistent or independently anchored audit ledger.
 
-| Parameter | Description | Required |
-|:----------|:------------|:---------|
-| `--analyte` | Analyte name (e.g., sodium, creatinine, glucose) | Yes |
-| `--current` | Current lab result value | Yes |
-| `--previous` | Previous lab result value | Yes |
-| `--method` | Check method: `fixed`, `rcv`, or `both` | No (default: both) |
-| `--time-hours` | Hours between results (for rate delta and time-weighted RCV) | No |
-| `--confidence` | RCV confidence level (0.95 or 0.99) | No (default: 0.95) |
-| `-i / --input` | Input CSV file path (batch mode) | Yes (batch) |
-| `-o / --output` | Output CSV file path (batch mode) | No (default: results.csv) |
+## Testing and development
 
-### Input CSV Schema (Batch Mode)
+~~~bash
+python -m pip install -e ".[dev]"
+python -m pytest -q
+python -m unittest -q test_delta_check
+node --check web/app.js
+node --test web/app.test.cjs
+~~~
 
-| Field | Description | Required |
-|:------|:------------|:---------|
-| `analyte` | Analyte name | Yes |
-| `current` | Current result value | Yes |
-| `previous` | Previous result value | Yes |
-| `time_hours` | Hours between results | No |
-
----
-
-## Security Features
-
-### Zero-PHI Outbound Interceptor
-Active regex inspection blocking SSNs, MRNs, phone numbers, email addresses, and patient identifiers from outbound data.
-
-### Tamper-Evident HMAC-SHA256 Audit Trail
-Chained, cryptographically signed logs for every evaluation. The audit secret key is resolved in priority order:
-1. Explicit key passed to `AuditTrail(secret_key=...)`
-2. `AUDIT_SECRET_KEY` environment variable
-3. Secure random key generated per process (safe default)
-
-**Production deployment:** Always set `AUDIT_SECRET_KEY` to a stable, secrets-manager-provided value.
-
-```bash
-# Generate a secure key
-python -c "import secrets; print(secrets.token_hex(32))"
-```
-
----
-
-## API Server (Optional)
-
-The project includes a FastAPI-based REST API for integration with clinical systems:
-
-```bash
-pip install "delta-check-analyzer[web]"
-uvicorn agents.api:app --host 0.0.0.0 --port 8000
-```
-
-### Endpoints
-- `GET /health` — Health check
-- `POST /api/audit` — Dispatch task payload for multi-worker evaluation
-- `POST /api/chat` — Air-gapped supervisory conversational assistant
-- `GET /api/audit/logs` — Retrieve and verify HMAC audit trail
-
----
-
-## Testing
-
-```bash
-# Run all tests
-pytest -v
-
-# Run with coverage
-pip install pytest-cov
-pytest -v --cov=delta_check --cov=agents
-```
-
-### Expected Test Results
-- `test_phi_guard_enforcement` — Validates PHI outbound blocking
-- `test_specialized_workers` — Validates QC, Safety, and Protocol workers
-- `test_supervisor_consensus_and_audit` — Validates multi-agent consensus and audit integrity
-- `test_enrichment_suite_execution` — Validates enrichment feature pipeline
-- `test_enrichment_threshold_escalation` — Validates threshold-based alerting
-
----
-
-## Testing / Simulation
-
-```bash
-# Run high-throughput simulation benchmark
-python simulator.py 1000
-```
-
----
-
-## Project Structure
-
-```
-delta-check-analyzer/
-├── delta_check/          # Core delta check algorithms
-│   ├── analyzer.py       # Main delta check orchestration
-│   ├── core.py           # RCV calculations and biological variation
-│   ├── reference_table.py  # CVi/CVa reference values
-│   └── cli.py            # Advanced CLI (numpy-based batch processing)
-├── agents/               # Enterprise security and multi-agent system
-│   ├── base.py           # PHI Guard, HMAC Audit Trail
-│   ├── models.py         # Pydantic data schemas
-│   ├── workers.py        # Specialized evaluation workers
-│   ├── supervisor.py     # Multi-agent orchestrator
-│   ├── api.py            # FastAPI REST endpoints
-│   ├── metrics.py        # Prometheus metrics exporter
-│   ├── streamer.py       # WebSocket telemetry broadcaster
-│   └── learning.py       # Bayesian calibration engine
-├── tests/                # Pytest test suite
-├── sample_data.csv       # Sample longitudinal lab data
-├── cli.py                # Main CLI entry point
-├── enrichment.py         # Clinical enrichment engines
-├── simulator.py          # High-throughput simulation
-├── requirements.txt      # Python dependencies
-├── pyproject.toml        # Project metadata and build config
-├── Dockerfile            # Container build
-└── docker-compose.yml    # Container orchestration
-```
-
----
+GitHub Actions runs the Python test suites and browser calculation tests against Python 3.10, 3.11, and 3.12. To test the browser locally, open web/index.html or serve the repository root using python -m http.server 8001. Modern Chromium, Firefox, and Safari browsers are targeted; clinical deployment and cross-browser automated end-to-end testing are not claimed.
 
 ## License
 
-MIT License — see [LICENSE](LICENSE) for details.
-
-Author: Dr. Abu Suraih Sakhri
+MIT — see [LICENSE](LICENSE).
