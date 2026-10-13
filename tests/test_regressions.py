@@ -71,3 +71,12 @@ def test_timed_significance_uses_timed_variability():
     assert result.to_dict()["two_sided_p_value"] == pytest.approx(
         round(1 - result.probability_true_change,4)
     )
+
+
+@pytest.mark.parametrize("cvi,cva", [("-1","2"),("NaN","1"),("2","Inf"),("bad","1")])
+def test_invalid_reference_table_rejected(tmp_path,cvi,cva):
+    from delta_check.reference_table import load_reference_table
+    source = tmp_path / "reference.csv"
+    source.write_text("analyte,cvi_percent,cva_percent\nsodium,"+cvi+","+cva+"\n")
+    with pytest.raises(ValueError,match="Reference CSV line 2"):
+        load_reference_table(str(source))
