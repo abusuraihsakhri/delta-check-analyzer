@@ -1,0 +1,64 @@
+name: Publish Delta Check Calculator
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - index.html
+      - web/**
+      - .github/workflows/pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare static site
+        run: |
+          mkdir -p _site/web
+          cp index.html _site/index.html
+          cp web/index.html web/app.js _site/web/
+          touch _site/.nojekyll
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy static application
+        id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Verify deployed root and calculator
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          test -n "$PAGE_URL"
+          base=$(printf '%s' "$PAGE_URL" | sed 's@/$@@')
+          for attempt in $(seq 1 15); do
+            if curl -fsSL "$base/" | grep -q 'web/' &&
+               curl -fsSL "$base/web/" | grep -q 'Paired result evaluation' &&
+               curl -fsSL "$base/web/app.js" | grep -q 'function calculate'; then
+              echo "Live calculator assets verified at $base/"
+              exit 0
+            fi
+            sleep 4
+          done
+          echo "Live calculator assets could not be verified" >&2
+          exit 1

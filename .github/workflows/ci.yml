@@ -49,18 +49,3 @@ jobs:
           done
           python -c 'import json; assert json.load(open("/tmp/dca-health.json"))["status"] == "HEALTHY"'
           curl --fail --silent --show-error -X POST http://127.0.0.1:8765/api/audit -H "Content-Type: application/json" -d '{"task_id":"DEMO-1","target_identifier":"SPECIMEN-01","primary_metric":10.0}' | python -c 'import json,sys; r=json.load(sys.stdin); assert r["total_alerts"] == 0'
-      - name: Verify deployed GitHub Pages assets
-        if: github.event_name == 'push' && github.ref == 'refs/heads/master' && matrix.python-version == '3.12'
-        run: |
-          base=https://abusuraihsakhri.github.io/delta-check-analyzer
-          found=0
-          for attempt in $(seq 1 20); do
-            if curl -fsSL "$base/web/" | grep -q 'Paired result evaluation' &&
-               curl -fsSL "$base/web/app.js" | grep -q 'function calculate' &&
-               curl -fsSL "$base/" | grep -q 'web/'; then
-              found=1
-              break
-            fi
-            sleep 6
-          done
-          test "$found" -eq 1 || { echo "Published Pages assets not verified"; exit 1; }
