@@ -1,236 +1,84 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Delta Check Analyzer — Operations Console</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --bg: #090d16;
-            --card: #111827;
-            --border: #1f293d;
-            --accent: #3b82f6;
-            --accent-glow: rgba(59, 130, 246, 0.25);
-            --text: #f3f4f6;
-            --text-muted: #9ca3af;
-            --danger: #ef4444;
-            --warning: #f59e0b;
-            --success: #10b981;
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: 'Inter', sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            padding: 2rem;
-            min-height: 100vh;
-        }
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid var(--border);
-            padding-bottom: 1.5rem;
-            margin-bottom: 2rem;
-        }
-        .header-title h1 { font-size: 1.6rem; font-weight: 700; color: #fff; }
-        .header-title p { color: var(--text-muted); font-size: 0.9rem; margin-top: 0.25rem; }
-        .badge {
-            display: inline-block;
-            padding: 0.3rem 0.8rem;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            background: var(--accent-glow);
-            color: var(--accent);
-            border: 1px solid var(--accent);
-        }
-        .grid {
-            display: grid;
-            grid-template-columns: 1fr 1.2fr;
-            gap: 1.5rem;
-        }
-        .card {
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 1.5rem;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-        }
-        .card h2 {
-            font-size: 1.1rem;
-            font-weight: 600;
-            margin-bottom: 1rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        .form-group { margin-bottom: 1rem; }
-        label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.4rem; }
-        input, select, textarea {
-            width: 100%;
-            padding: 0.65rem 0.9rem;
-            background: #0d1322;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            color: #fff;
-            font-family: inherit;
-            font-size: 0.9rem;
-        }
-        input:focus, textarea:focus { outline: none; border-color: var(--accent); }
-        .btn {
-            background: var(--accent);
-            color: #fff;
-            border: none;
-            padding: 0.7rem 1.4rem;
-            border-radius: 6px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: 0.2s;
-            width: 100%;
-        }
-        .btn:hover { background: #2563eb; }
-        .terminal {
-            background: #060911;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 1rem;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.85rem;
-            color: #10b981;
-            height: 380px;
-            overflow-y: auto;
-            white-space: pre-wrap;
-        }
-        .metrics-bar {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-        }
-        .metric-box {
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 1rem;
-            text-align: center;
-        }
-        .metric-val { font-size: 1.4rem; font-weight: 700; color: #fff; margin-top: 0.25rem; }
-        .metric-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; }
-    </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Delta Check Analyzer — Laboratory Result Comparison</title>
+  <style>
+    :root {font: 16px/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:#172b42;background:#f3f6fa}
+    *{box-sizing:border-box}
+    body{margin:0;padding:24px}
+    main{max-width:980px;margin:0 auto}
+    header{margin-bottom:24px}
+    h1{font-size:1.9rem;line-height:1.2;margin:0 0 8px}
+    h2{font-size:1.1rem;margin:0 0 18px}
+    p{margin:0 0 12px}
+    .muted{color:#52657a}
+    .layout{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:20px}
+    .panel{background:#fff;border:1px solid #d8e1ec;border-radius:12px;padding:22px}
+    .formgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .full{grid-column:1/-1}
+    label{display:block;font-size:.88rem;font-weight:600;margin-bottom:5px}
+    input,select{width:100%;padding:11px;border:1px solid #a7b8ca;border-radius:7px;background:white;color:#172b42;font:inherit}
+    input:focus-visible,select:focus-visible,button:focus-visible{outline:3px solid #347fc4;outline-offset:2px}
+    button{cursor:pointer;border:0;border-radius:7px;background:#174c80;color:#fff;padding:12px 17px;font:inherit;font-weight:650}
+    button:disabled{opacity:.48;cursor:not-allowed}
+    .actions{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap}
+    .secondary{color:#174c80;background:#e8f0fa}
+    .status{display:inline-block;font-weight:750;letter-spacing:.02em;border-radius:6px;padding:7px 11px;margin:0 0 14px}
+    .flagged{background:#ffedeb;color:#9b1912}
+    .clear{background:#e5f6ec;color:#115c35}
+    .partial{background:#fff5df;color:#7b4b00}
+    dl{display:grid;grid-template-columns:1fr 1fr;gap:12px 8px;margin:20px 0 0}
+    dt{color:#52657a}
+    dd{margin:0;font-weight:650;text-align:right;overflow-wrap:anywhere}
+    .note{background:#edf3fa;border-left:3px solid #4d83b7;padding:11px 14px;font-size:.89rem;margin-top:20px}
+    .error{color:#a5231b;font-weight:650;min-height:1.6em;margin-top:10px}
+    footer{font-size:.83rem;color:#52657a;margin-top:24px}
+    @media(max-width:700px){body{padding:14px}.layout{grid-template-columns:1fr}.panel{padding:17px}h1{font-size:1.6rem}}
+    @media(max-width:370px){.formgrid{grid-template-columns:1fr}}
+  </style>
 </head>
 <body>
-
-    <div class="header">
-        <div class="header-title">
-            <h1>Delta Check Analyzer</h1>
-            <p>Domain: Clinical & Cryptographic AI | Standard: CAP / CLSI / NIST Standards | LabMind-Atlas Architecture</p>
+<main>
+  <header>
+    <h1>Delta Check Analyzer</h1>
+    <p class="muted">Compare two laboratory results using demonstration fixed thresholds and reference change value (RCV) calculations.</p>
+  </header>
+  <div class="layout">
+    <section class="panel" aria-labelledby="form-heading">
+      <h2 id="form-heading">Paired result evaluation</h2>
+      <form id="calculator">
+        <div class="formgrid">
+          <div class="full"><label for="analyte">Analyte</label><select id="analyte" required></select></div>
+          <div><label for="prior">Previous result</label><input id="prior" type="number" step="any" value="140" required></div>
+          <div><label for="current">Current result</label><input id="current" type="number" step="any" value="145" required></div>
+          <div class="full"><span class="muted" id="unit">mEq/L</span></div>
+          <div><label for="cvi">Within-subject CVi (%)</label><input id="cvi" type="number" min="0" step="any" required></div>
+          <div><label for="cva">Analytical CVa (%)</label><input id="cva" type="number" min="0" step="any" required></div>
+          <div><label for="confidence">RCV confidence</label><select id="confidence"><option value="0.95">95% (two-sided)</option><option value="0.99">99% (two-sided)</option></select></div>
+          <div><label for="method">Comparison method</label><select id="method"><option value="both">Both</option><option value="rcv">RCV only</option><option value="fixed">Fixed limits only</option></select></div>
         </div>
-        <div>
-            <span class="badge">Air-Gapped Active</span>
-            <span class="badge" style="background: rgba(16,185,129,0.2); color: #10b981; border-color: #10b981;">Zero-PHI Guard Active</span>
-        </div>
-    </div>
-
-    <div class="metrics-bar">
-        <div class="metric-box">
-            <div class="metric-label">System Status</div>
-            <div class="metric-val" style="color: var(--success);" id="m-status">OPTIMAL</div>
-        </div>
-        <div class="metric-box">
-            <div class="metric-label">Tasks Processed</div>
-            <div class="metric-val" id="m-tasks">142</div>
-        </div>
-        <div class="metric-box">
-            <div class="metric-label">Audit Blocks Signed</div>
-            <div class="metric-val" id="m-audit">142</div>
-        </div>
-        <div class="metric-box">
-            <div class="metric-label">PHI Interceptions</div>
-            <div class="metric-val" style="color: var(--accent);" id="m-phi">0</div>
-        </div>
-    </div>
-
-    <div class="grid">
-        <div class="card">
-            <h2>⚙️ Dispatch Distributed Component Audit</h2>
-            <div class="form-group">
-                <label>Task / Sample ID</label>
-                <input type="text" id="task_id" value="TASK-2026-LIVE-01">
-            </div>
-            <div class="form-group">
-                <label>Target Identifier</label>
-                <input type="text" id="target_id" value="SPECIMEN-ALPHA-77">
-            </div>
-            <div class="form-group">
-                <label>Primary Measurement / Value</label>
-                <input type="number" id="primary_metric" value="29.4" step="0.1">
-            </div>
-            <div class="form-group">
-                <label>Secondary Metric / Kinetic Index</label>
-                <input type="number" id="secondary_metric" value="14.8" step="0.1">
-            </div>
-            <div class="form-group">
-                <label>Status / Phenotype Descriptor</label>
-                <input type="text" id="status_descriptor" value="DISCORDANT_ANOMALY">
-            </div>
-            <div class="form-group">
-                <label><input type="checkbox" id="is_critical" checked> Trigger Emergency / Critical Flag</label>
-            </div>
-            <button class="btn" onclick="runAudit()">Execute Distributed Component Audit</button>
-        </div>
-
-        <div class="card">
-            <h2>📊 Real-Time Consensus Dossier & Audit Log</h2>
-            <div class="terminal" id="outputConsole">// Delta Check Analyzer Operations Console Ready
-// Connection established with Air-Gapped Supervisor
-// Cryptographic HMAC-SHA256 audit ledger loaded.
-// Ready for live task payload dispatch...</div>
-        </div>
-    </div>
-
-    <script>
-        async function runAudit() {
-            const consoleEl = document.getElementById('outputConsole');
-            consoleEl.innerText = "// Dispatching task across specialized workers...
-// Invoking InvariantQCWorker, SafetyEscalationWorker, ProtocolWorker...";
-
-            const payload = {
-                task_id: document.getElementById('task_id').value,
-                target_identifier: document.getElementById('target_id').value,
-                primary_metric: parseFloat(document.getElementById('primary_metric').value),
-                secondary_metric: parseFloat(document.getElementById('secondary_metric').value),
-                status_descriptor: document.getElementById('status_descriptor').value,
-                is_critical_flag: document.getElementById('is_critical').checked
-            };
-
-            try {
-                const res = await fetch('/api/audit', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                const data = await res.json();
-                consoleEl.innerText = JSON.stringify(data, null, 2);
-                document.getElementById('m-tasks').innerText = parseInt(document.getElementById('m-tasks').innerText) + 1;
-                document.getElementById('m-audit').innerText = parseInt(document.getElementById('m-audit').innerText) + 1;
-            } catch (err) {
-                consoleEl.innerText = "// Offline / Simulation Output:\n" + JSON.stringify({
-                    dossier_id: "DOSSIER-SIM-" + Math.floor(Math.random()*10000),
-                    system: "delta-check-analyzer",
-                    domain: "Clinical & Cryptographic AI",
-                    task_id: payload.task_id,
-                    overall_urgency: payload.is_critical_flag ? "CRITICAL_STAT_PANIC" : "ELEVATED_RISK",
-                    integrity_status: "DISCORDANT_ANOMALY",
-                    alerts: [
-                        { worker: "InvariantQCWorker", alert: "Primary metric exceeds upper reference bound" },
-                        { worker: "SafetyEscalationWorker", alert: "Critical emergency interlock flag active" }
-                    ],
-                    audit_hash: "HMAC_SHA256_e83f9a72b941d6c381f9"
-                }, null, 2);
-            }
-        }
-    </script>
+        <p class="muted" id="fixed-note" style="font-size:.85rem;margin-top:12px"></p>
+        <div class="actions"><button type="submit">Evaluate delta</button><button type="button" class="secondary" id="export" disabled>Export CSV</button></div>
+        <p class="error" id="error" role="alert"></p>
+      </form>
+      <div class="note">CVi/CVa and fixed thresholds are illustrative defaults. Verify assay methods, units, preanalytical factors and local policies before clinical use. No patient identifiers are needed.</div>
+    </section>
+    <section class="panel" aria-labelledby="result-heading">
+      <h2 id="result-heading">Evaluation</h2>
+      <div id="result" hidden aria-live="polite">
+        <p><span id="status" class="status"></span></p>
+        <p id="summary"></p>
+        <dl id="details"></dl>
+      </div>
+      <p class="muted">Submit paired results to view absolute change, percentage change and method-specific flags. A missing threshold is reported as not evaluated, never as a pass.</p>
+      <div class="note"><strong>RCV:</strong> √2 × z × √(CVi² + CVa²). This is a statistical threshold, not a clinical diagnosis or posterior probability of biological change. Time-weighted RCV is not used in this browser version.</div>
+    </section>
+  </div>
+  <footer>Data remain in this browser tab. No server request, analytics, external fonts or persistent browser storage are used. Export is initiated locally. Educational/research use only; not validated as a laboratory information system.</footer>
+</main>
+<script src="./app.js" defer></script>
 </body>
 </html>
