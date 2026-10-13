@@ -37,6 +37,9 @@ delta-check = "cli:main"
 [tool.setuptools.packages.find]
 include = ["delta_check*", "agents*"]
 
+[tool.setuptools]
+py-modules = ["cli"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
